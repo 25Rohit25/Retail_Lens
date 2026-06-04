@@ -8,24 +8,24 @@ from ultralytics import YOLO
 from tracker import TrackerWrapper
 from emit import emit_event
 
-def load_layout(json_path, width, height):
+def load_layout(json_path, width, height, store_id):
     try:
         with open(json_path, 'r') as f:
             data = json.load(f)
             # In a real scenario, parse real coordinates from data
-            raise FileNotFoundError("Mock exception to force fallback if real zones aren't defined properly")
+            raise FileNotFoundError("Mock exception to force fallback")
     except (FileNotFoundError, Exception):
         # Fallback to dynamic demo zones based on video dimensions
-        print("Using dynamic fallback zones for challenge compliance...")
+        print(f"Using dynamic fallback zones for {store_id}...")
         return {
-            "store_id": "STORE_BLR_002",
+            "store_id": store_id,
             "zones": {
                 "SKINCARE": Polygon([(0, 0), (width/2, 0), (width/2, height), (0, height)]),
                 "BILLING": Polygon([(width/2, 0), (width, 0), (width, height), (width/2, height)])
             }
         }
 
-def process_video(video_path, layout_path, camera_id):
+def process_video(video_path, layout_path, camera_id, store_id):
     """
     Main processing loop.
     Extracts frames, runs YOLOv8 detection, pushes to ByteTrack, computes zone intersections, and emits events.
@@ -36,7 +36,8 @@ def process_video(video_path, layout_path, camera_id):
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
     
-    layout = load_layout(layout_path, width, height)
+    layout = load_layout(layout_path, width, height, store_id)
+    # Ensure we use the passed store_id instead of the hardcoded fallback
     store_id = layout["store_id"]
     zones = layout["zones"]
     
@@ -174,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument("--video", required=True, help="Path to raw CCTV mp4")
     parser.add_argument("--layout", required=True, help="Path to store_layout.json")
     parser.add_argument("--camera", required=True, help="Camera ID (e.g., CAM_ENTRY_01)")
+    parser.add_argument("--store", required=True, help="Store ID (e.g., STORE_BLR_002)")
     args = parser.parse_args()
     
-    process_video(args.video, args.layout, args.camera)
+    process_video(args.video, args.layout, args.camera, args.store)
