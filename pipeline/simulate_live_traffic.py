@@ -2,28 +2,31 @@ import time
 import requests
 import uuid
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 API_URL = "http://localhost:8000/events/ingest"
+STORE_ID = "store_001"
 
 def send_event(event_type: str, visitor_id: str, zone_id: str = None):
     payload = {
         "event_id": str(uuid.uuid4()),
+        "store_id": STORE_ID,
         "event_type": event_type,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "visitor_id": visitor_id,
+        "track_id": visitor_id,
         "zone_id": zone_id
     }
     try:
         res = requests.post(API_URL, json=payload)
         if res.status_code == 201:
-            print(f"✅ Sent {event_type} for {visitor_id}")
+            print(f"[OK] Sent {event_type} for {visitor_id}")
         else:
-            print(f"❌ API Error ({res.status_code}): {res.text}")
+            print(f"[ERR] API Error ({res.status_code}): {res.text}")
     except Exception as e:
-        print(f"❌ Connection error (Is Docker running?): {e}")
+        print(f"[ERR] Connection error (Is Docker running?): {e}")
 
-print("🛍️ Simulating Live CCTV Event Traffic...")
+print("Simulating Live CCTV Event Traffic...")
 print("Press Ctrl+C to stop.\n")
 
 while True:
@@ -46,7 +49,7 @@ while True:
             # 4. Abandon (30%) or Purchase (70%)
             if random.random() < 0.3:
                 send_event("BILLING_QUEUE_ABANDON", visitor_id, zone_id="billing_1")
-                print("🚨 Queue abandoned!")
+                print("[!!] Queue abandoned!")
             else:
                 # Normal checkout
                 send_event("ZONE_EXIT", visitor_id, zone_id="billing_1")

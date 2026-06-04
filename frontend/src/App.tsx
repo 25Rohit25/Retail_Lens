@@ -11,7 +11,7 @@ function App() {
   const [funnel, setFunnel] = useState<any>({});
   const [anomalies, setAnomalies] = useState<any[]>([]);
   const [occupancyHistory, setOccupancyHistory] = useState<any[]>([]);
-  const storeId = "STORE_BLR_002";
+  const storeId = "store_001";
 
   useEffect(() => {
     // Poll every 5 seconds for live dashboard feel
