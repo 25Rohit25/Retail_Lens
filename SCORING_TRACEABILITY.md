@@ -1,6 +1,6 @@
 # SCORING_TRACEABILITY.md
 
-This matrix maps the explicit requirements from the HackerEarth Store Intelligence challenge directly to the files where they are implemented. This allows evaluators to quickly verify that every edge case has been rigorously handled.
+This matrix maps the explicit requirements from the challenge directly to the files where they are implemented. This allows evaluators to quickly verify that every edge case has been rigorously handled.
 
 | Challenge Requirement | File / Component | Details & Line Notes |
 | :--- | :--- | :--- |
