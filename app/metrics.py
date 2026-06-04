@@ -49,7 +49,7 @@ def get_metrics(store_id: str, db: Session = Depends(get_db)):
             Event.event_type.in_(["ZONE_DWELL", "ZONE_ENTER"])
         ).scalar() or 0
         
-        staff_engagement_rate = int((engaged_customers / unique_visitors) * 100)
+        staff_engagement_rate = min(100, int((engaged_customers / unique_visitors) * 100))
     else:
         staff_engagement_rate = 0
 
