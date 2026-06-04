@@ -22,7 +22,7 @@ export default function AnomalyPanel({ anomalies }: { anomalies: any[] }) {
             <AlertTriangle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${anomaly.severity === 'CRITICAL' ? 'text-red-500' : 'text-orange-500'}`} />
             <div>
               <p className="font-semibold text-sm">{anomaly.type.replace('_', ' ')}</p>
-              <p className="text-xs text-gray-300 mt-1">{anomaly.description}</p>
+              <p className="text-xs text-gray-300 mt-2 whitespace-pre-wrap leading-relaxed">{anomaly.description}</p>
               <p className="text-xs text-gray-500 mt-2">
                 {new Date(anomaly.time).toLocaleTimeString()}
               </p>
