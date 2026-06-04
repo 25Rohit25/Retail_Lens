@@ -27,9 +27,9 @@ def get_funnel(store_id: str, db: Session = Depends(get_db)):
         Event.store_id == store_id, Event.event_type == "BILLING_QUEUE_ABANDON", Event.is_staff == False
     ).scalar() or 0
     
-    purchases = db.query(func.count(func.distinct(VisitorSession.visitor_id))).filter(
-        VisitorSession.store_id == store_id, VisitorSession.is_converted == True
-    ).scalar() or 0
+    # Since we don't have POS logs for the hackathon, we infer purchases 
+    # as anyone who joined the queue and did NOT abandon it.
+    purchases = max(0, queues - abandons)
     
     return FunnelResponse(
         entry_count=entries,

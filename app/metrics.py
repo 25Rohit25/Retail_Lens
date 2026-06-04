@@ -52,6 +52,16 @@ def get_metrics(store_id: str, db: Session = Depends(get_db)):
         staff_engagement_rate = min(100, int((engaged_customers / unique_visitors) * 100))
     else:
         staff_engagement_rate = 0
+        
+    queues = db.query(func.count(func.distinct(Event.visitor_id))).filter(
+        Event.store_id == store_id, Event.event_type == "BILLING_QUEUE_JOIN", Event.is_staff == False
+    ).scalar() or 0
+    abandons = db.query(func.count(func.distinct(Event.visitor_id))).filter(
+        Event.store_id == store_id, Event.event_type == "BILLING_QUEUE_ABANDON", Event.is_staff == False
+    ).scalar() or 0
+    purchases = max(0, queues - abandons)
+    
+    conversion_rate = min(100, int((purchases / unique_visitors) * 100)) if unique_visitors > 0 else 0
 
     return {
         "store_id": store_id, 
@@ -59,5 +69,6 @@ def get_metrics(store_id: str, db: Session = Depends(get_db)):
         "current_occupancy": current_occupancy, 
         "avg_dwell_time_seconds": avg_dwell_val / 1000.0, 
         "staff_count": staff_count,
-        "staff_engagement_rate": staff_engagement_rate
+        "staff_engagement_rate": staff_engagement_rate,
+        "conversion_rate": conversion_rate
     }
