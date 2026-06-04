@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, ShoppingCart, Clock, UserCheck } from 'lucide-react';
+import { Users, ShoppingCart, Clock, UserCheck, Activity } from 'lucide-react';
 
 export default function MetricsCards({ metrics }: { metrics: any }) {
   const formatDwellTime = (seconds: number) => {
@@ -13,9 +13,10 @@ export default function MetricsCards({ metrics }: { metrics: any }) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
       <Card title="Live Occupancy" value={metrics?.current_occupancy || 0} icon={<Users className="w-6 h-6 text-accent"/>} />
       <Card title="Staff Active" value={metrics?.staff_count || 0} icon={<UserCheck className="w-6 h-6 text-purple-400"/>} />
+      <Card title="Staff Engagement" value={`${metrics?.staff_engagement_rate || 0}%`} icon={<Activity className="w-6 h-6 text-[#32D74B]"/>} />
       <Card title="Avg Dwell Time" value={formatDwellTime(metrics?.avg_dwell_time_seconds)} icon={<Clock className="w-6 h-6 text-yellow-400"/>} />
       <Card title="Conversion Rate" value={`${metrics?.conversion_rate || 0}%`} icon={<ShoppingCart className="w-6 h-6 text-success"/>} />
     </div>
