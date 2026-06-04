@@ -1,82 +1,390 @@
-# Store Intelligence Platform
-**Full-Stack Computer Vision & Retail Analytics Pipeline**
+# Retail_Lens
 
-## 1. Project Overview
-This project is an end-to-end retail intelligence platform designed to extract physical shopper behavior from raw CCTV camera footage and transform it into actionable business metrics. It processes video feeds in real-time, tracks human movement across dynamic spatial zones, and serves live KPI analytics (Live Occupancy, Average Dwell Time, Queue Abandonment, Conversion Rates) to a responsive React dashboard.
+### AI-Powered Retail Intelligence Platform
 
-## 2. System Architecture
-
-The platform is strictly organized to meet enterprise scoring requirements:
-- **/pipeline**: CV ingestion engine (`detect.py`, `tracker.py`, `emit.py`).
-- **/app**: Containerized FastAPI backend (`main.py`, `models.py`, `ingestion.py`, `metrics.py`, `anomalies.py`, `funnel.py`, `health.py`).
-- **/tests**: Comprehensive Pytest suite (`test_pipeline.py`, `test_metrics.py`, `test_anomalies.py`).
-- **/docs**: Technical AI architecture documentation (`DESIGN.md`, `CHOICES.md`).
-
-### A. Computer Vision Ingestion Engine (`pipeline/detect.py`)
-- **Model**: YOLOv8 Nano (Ultralytics) optimized for high-speed edge inference on CPU hardware.
-- **Tracking & Re-ID**: Custom `TrackerWrapper` extracts 128d visual feature embeddings to match identities across different camera feeds, natively solving cross-camera double counting.
-- **Geometry Processing**: Uses `cv2.pointPolygonTest` to map pixel coordinates into logical business zones (e.g., `Entrance`, `Aisle`, `Billing Queue`).
-- **Event Emitter**: Pushes asynchronous JSON payloads (e.g., `ENTRY`, `ZONE_DWELL`, `EXIT`) to the backend.
-
-### B. Backend API Layer (`app/`)
-- **Framework**: FastAPI (Python) running on Uvicorn.
-- **Endpoints Provided**:
-  - `POST /events/ingest/batch`: Supports bulk ingestion of up to 500 events with partial success handling.
-  - `GET /stores/{id}/metrics`: Live occupancy, dwell time, and staff activity.
-  - `GET /stores/{id}/funnel`: Queue depth and conversion funnel logic.
-  - `GET /stores/{id}/anomalies`: Detects queue spikes, dead zones, and conversion drops.
-  - `GET /stores/{id}/heatmap`: Returns normalized spatial points (0-100 scale) for rendering.
-  - `GET /health`: Demonstrates graceful degradation (HTTP 503) and stale-feed detection.
-- **Data Integrity**: Uses strict Pydantic validation and UUID deduplication to ensure idempotent event ingestion.
-- **Observability**: Implements structured JSON logging injecting `trace_id` and `latency_ms` into every request.
-
-### C. Frontend Dashboard (React + Tailwind CSS)
-- **Framework**: React (Vite).
-- **Styling**: Tailwind CSS for a modern, glassmorphic, dark-mode UI.
-- **Data Visualization**: Recharts for rendering the Conversion Funnel and live Occupancy Trends.
-- **State**: Polls the FastAPI `/metrics` and `/funnel` endpoints every 5 seconds to provide a true "Live" control-room experience.
+Retail_Lens is an end-to-end Computer Vision and Retail Analytics platform that transforms raw CCTV footage into actionable business intelligence. The system tracks shopper movement, measures customer engagement, detects operational bottlenecks, and provides real-time retail insights through an interactive analytics dashboard.
 
 ---
 
-## 3. Core Features & Engineering Evidence
+# Problem Statement
 
-### Group-Entry Handling
-In legacy motion-detection systems, groups of people walking shoulder-to-shoulder merge into a single bounding box, causing undercounting. 
-* **Our Solution:** By leveraging YOLOv8's deep neural network and Non-Maximum Suppression (NMS), the engine independently segments overlapping human bodies. Each person is assigned a mathematically distinct `track_id`. If a family of 5 walks through the door simultaneously, the pipeline pushes 5 independent `ENTRY` API payloads at the exact same millisecond.
+Modern retail stores generate thousands of hours of CCTV footage every month, but most of this data remains unused for operational decision-making.
 
-### Behavioral Staff Classification
-Store employees constantly trigger motion sensors, polluting customer conversion metrics.
-* **Our Solution:** We implemented a **Behavioral Heuristic Algorithm**. Customers follow a linear path (Enter -> Shop -> Bill -> Leave). Staff members traverse the store randomly and repeatedly. Our state machine tracks `zone_transitions` per `track_id`. If a person crosses zones frequently (threshold configurable), the engine flags them with `is_staff = True`. The backend SQL queries explicitly filter out `is_staff == False` when calculating Conversion Rates and Live Occupancy.
+Store managers often struggle to answer critical questions:
 
-### Dynamic Geometric Zone Dwell
-Instead of drawing rigid boxes, the pipeline allows defining complex `N-point` geometric polygons for store zones.
-* **Our Solution:** As a bounding box's bottom-center coordinate (the person's feet) enters a polygon, a timer starts. If the person leaves the polygon after `X` seconds, the system emits a `ZONE_DWELL` event with the exact `dwell_ms`. This allows the dashboard to measure engagement (e.g., stopping at an aisle vs walking past it).
+* How many customers entered the store today?
+* Which areas attract the most attention?
+* Are customers abandoning checkout queues?
+* How effective are staff interactions?
+* Where are customers dropping off before purchase?
+* Can operational issues be detected before they impact revenue?
 
-### Queue Abandonment Logic
-Tracking lost revenue at the checkout counter.
-* **Our Solution:** When a shopper's feet enter the `BILLING` polygon, a `BILLING_QUEUE_JOIN` event is fired. If the tracker is lost or exits the store *without* satisfying the time requirement or POS validation, the system fires a `BILLING_QUEUE_ABANDON` event. 
-
-### Hardened Math & Zero-Traffic Handling
-The system handles store closing (empty stores) perfectly.
-* **Live Occupancy:** Calculated dynamically as `MAX(0, COUNT(ENTRY) - COUNT(EXIT))`.
-* **Zero Division Protection:** PostgreSQL `AVG()` returns `decimal.Decimal` which causes Python TypeErrors when divided by floats. We explicitly cast and coalesce database aggregates to ensure the API never crashes during zero-traffic periods (returning `0s` and `0%`).
+Retail_Lens addresses these challenges by converting video streams into structured behavioral events and real-time business intelligence.
 
 ---
 
-## 4. How to Run
+# Key Features
 
-1. **Start the Infrastructure**
-   ```bash
-   docker compose up --build -d
-   ```
-   *This spins up PostgreSQL, the FastAPI backend (Port 8000), and the React Dashboard (Port 5173).*
+### Real-Time Occupancy Tracking
 
-2. **Run the Vision Pipeline**
-   ```bash
-   .\pipeline\run.bat
-   ```
-   *(On Linux/macOS, use `./pipeline/run.sh`)*
-   *This executes the YOLOv8 pipeline locally against the provided video feeds, streaming events to the database.*
+Monitor active shoppers currently inside the store.
 
-3. **View the Dashboard**
-   Open your browser to `http://localhost:5173`. Watch the Live Occupancy, Conversion Funnel, and Heatmap update in real-time.
+### Shopper Journey Analytics
+
+Track the complete customer journey:
+
+Entry → Engagement → Queue → Purchase
+
+### Queue Intelligence
+
+Detect queue formation, abandonment, and bottlenecks.
+
+### Behavioral Staff Identification
+
+Differentiate staff from customers using movement behavior instead of fragile visual uniform detection.
+
+### Staff Engagement Analytics
+
+Measure interactions between staff members and shoppers.
+
+### Dynamic Zone Dwell Analysis
+
+Track customer engagement across different store zones.
+
+### Re-Entry Detection
+
+Prevent duplicate counting when shoppers leave and re-enter.
+
+### Predictive Queue Warnings
+
+Forecast potential billing congestion before it occurs.
+
+### Operational Anomaly Detection
+
+Detect unusual patterns such as:
+
+* Queue Spikes
+* Conversion Drops
+* Dead Zones
+* Stale Camera Feeds
+
+---
+
+# System Architecture
+
+```mermaid
+flowchart TD
+
+A[CCTV Video Feeds] --> B[YOLOv8 Nano Detection]
+
+B --> C[ByteTrack Tracking & Re-Identification]
+
+C --> D[Geometric Zone Engine]
+
+D --> E[Behavioral Staff Classification]
+
+E --> F[Event Generation Engine]
+
+F --> G[FastAPI Ingestion API]
+
+G --> H[(PostgreSQL Event Database)]
+
+H --> I[Analytics Engine]
+
+I --> I1[Live Occupancy]
+I --> I2[Conversion Funnel]
+I --> I3[Queue Intelligence]
+I --> I4[Staff Engagement]
+I --> I5[Dwell Analytics]
+I --> I6[Anomaly Detection]
+I --> I7[Predictive Queue Warnings]
+
+I --> J[React Dashboard]
+
+style A fill:#222,color:#fff
+style H fill:#0b6623,color:#fff
+style J fill:#0d47a1,color:#fff
+```
+
+---
+
+# Architecture Layers
+
+## Layer 1 — Edge Vision Processing
+
+The vision pipeline processes CCTV footage locally using YOLOv8 Nano and multi-object tracking.
+
+Responsibilities:
+
+* Human Detection
+* Tracking
+* Re-Identification
+* Polygon Zone Mapping
+* Staff Classification
+* Event Generation
+
+---
+
+## Layer 2 — Event Intelligence Engine
+
+The Event Engine converts detections into business-level events.
+
+Generated events include:
+
+* ENTRY
+* EXIT
+* REENTRY
+* ZONE_ENTER
+* ZONE_EXIT
+* ZONE_DWELL
+* BILLING_QUEUE_JOIN
+* BILLING_QUEUE_ABANDON
+
+Events are transmitted in batched JSON payloads to the backend.
+
+---
+
+## Layer 3 — Enterprise Analytics Backend
+
+Built with FastAPI and PostgreSQL.
+
+Core responsibilities:
+
+* Event Validation
+* Event Storage
+* Aggregation Pipelines
+* Conversion Funnel Analytics
+* Queue Monitoring
+* Staff Metrics
+* Anomaly Detection
+* Predictive Intelligence
+
+---
+
+## Layer 4 — Retail Intelligence Dashboard
+
+Built with React and Tailwind CSS.
+
+Displays:
+
+* Live Occupancy
+* Staff Activity
+* Staff Engagement
+* Average Dwell Time
+* Conversion Funnel
+* Queue Metrics
+* Operational Alerts
+
+---
+
+# Technology Stack
+
+## Computer Vision
+
+* YOLOv8 Nano
+* OpenCV
+* ByteTrack
+* NumPy
+
+## Backend
+
+* FastAPI
+* SQLAlchemy
+* PostgreSQL
+* Pydantic
+
+## Frontend
+
+* React
+* Vite
+* Tailwind CSS
+* Recharts
+
+## DevOps
+
+* Docker
+* Docker Compose
+
+---
+
+# API Endpoints
+
+## Event Ingestion
+
+```http
+POST /events/ingest/batch
+```
+
+Supports bulk event ingestion.
+
+---
+
+## Live Metrics
+
+```http
+GET /stores/{id}/metrics
+```
+
+Returns:
+
+* Occupancy
+* Dwell Time
+* Staff Activity
+
+---
+
+## Conversion Funnel
+
+```http
+GET /stores/{id}/funnel
+```
+
+Returns shopper funnel analytics.
+
+---
+
+## Anomaly Detection
+
+```http
+GET /stores/{id}/anomalies
+```
+
+Returns operational alerts.
+
+---
+
+## Heatmap Data
+
+```http
+GET /stores/{id}/heatmap
+```
+
+Returns normalized spatial coordinates.
+
+---
+
+## Health Monitoring
+
+```http
+GET /health
+```
+
+Monitors:
+
+* Database Connectivity
+* Feed Freshness
+* Service Health
+
+---
+
+# How to Run
+
+## 1. Start Infrastructure
+
+```bash
+docker compose up --build -d
+```
+
+This launches:
+
+* PostgreSQL Database
+* FastAPI Backend
+* React Dashboard
+
+---
+
+## 2. Run Vision Pipeline
+
+### Windows
+
+```bash
+.\pipeline\run.bat
+```
+
+### Linux / macOS
+
+```bash
+./pipeline/run.sh
+```
+
+The pipeline processes CCTV footage and streams events to the backend.
+
+---
+
+## 3. Open Dashboard
+
+Navigate to:
+
+```text
+http://localhost:5173
+```
+
+Monitor:
+
+* Live Occupancy
+* Conversion Funnel
+* Staff Analytics
+* Queue Metrics
+* Operational Alerts
+
+---
+
+## 4. API Documentation
+
+Navigate to:
+
+```text
+http://localhost:8000/docs
+```
+
+---
+
+# Testing
+
+Run:
+
+```bash
+pytest tests/ -v
+```
+
+The test suite covers:
+
+* Re-Entry Deduplication
+* Queue Spike Detection
+* Empty Store Handling
+* Staff Exclusion
+* Event Ingestion
+* Metrics Computation
+
+---
+
+# Business Impact
+
+Retail_Lens transforms passive CCTV infrastructure into an intelligent retail decision-support system.
+
+The platform helps retailers:
+
+* Improve customer experience
+* Reduce queue-related losses
+* Optimize staffing
+* Increase conversion rates
+* Enable data-driven decision-making
+
+---
+
+# Future Roadmap
+
+* Multi-Store Analytics
+* Cross-Camera ReID Enhancement
+* POS System Integration
+* Vision Language Models (VLMs)
+* Customer Assistance Alerts
+* Advanced Predictive Forecasting
+
+---
+
+# Author
+
+**Rohit Singh**
+
+Retail_Lens — Transforming CCTV Footage into Retail Intelligence.
