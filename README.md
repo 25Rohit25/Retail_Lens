@@ -73,8 +73,9 @@ The system handles store closing (empty stores) perfectly.
 
 2. **Run the Vision Pipeline**
    ```bash
-   .\run.bat
+   .\pipeline\run.bat
    ```
+   *(On Linux/macOS, use `./pipeline/run.sh`)*
    *This executes the YOLOv8 pipeline locally against the provided video feeds, streaming events to the database.*
 
 3. **View the Dashboard**
