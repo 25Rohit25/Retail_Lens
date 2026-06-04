@@ -6,7 +6,7 @@ from shapely.geometry import Point, Polygon
 from ultralytics import YOLO
 
 from tracker import TrackerWrapper
-from emit import emit_event
+from emit import emit_event, flush_events
 
 def load_layout(json_path, width, height, store_id):
     try:
@@ -168,6 +168,7 @@ def process_video(video_path, layout_path, camera_id, store_id):
             del active_visitors[t]
         
     cap.release()
+    flush_events()
     print("Finished processing video.")
 
 if __name__ == "__main__":

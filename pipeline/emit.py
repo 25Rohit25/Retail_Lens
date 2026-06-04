@@ -6,12 +6,31 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("emit")
 
-API_URL = "http://localhost:8000/events/ingest"
+API_URL = "http://localhost:8000/events/ingest/batch"
+EVENT_BUFFER = []
+BATCH_SIZE = 50
+
+def flush_events():
+    global EVENT_BUFFER
+    if not EVENT_BUFFER:
+        return
+        
+    try:
+        response = requests.post(API_URL, json={"events": EVENT_BUFFER}, timeout=10)
+        if response.status_code in [200, 201, 207]:
+            logger.info(f"Successfully batch emitted {len(EVENT_BUFFER)} events.")
+        else:
+            logger.error(f"Failed to emit batch: {response.status_code} - {response.text}")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Connection error when emitting batch: {e}")
+    finally:
+        EVENT_BUFFER.clear()
 
 def emit_event(store_id, camera_id, visitor_id, event_type, timestamp, zone_id=None, dwell_ms=None, is_staff=False, confidence=1.0, metadata=None):
     """
     Formats and emits an event matching the exact Required Output Schema from the challenge.
     """
+    global EVENT_BUFFER
     event_payload = {
         "event_id": str(uuid.uuid4()),
         "store_id": store_id,
@@ -26,11 +45,7 @@ def emit_event(store_id, camera_id, visitor_id, event_type, timestamp, zone_id=N
         "metadata": metadata or {}
     }
     
-    try:
-        response = requests.post(API_URL, json=event_payload, timeout=2)
-        if response.status_code == 201:
-            logger.info(f"Emitted: {event_type} for {visitor_id} at {zone_id or 'STORE'}")
-        else:
-            logger.error(f"Failed to emit: {response.status_code} - {response.text}")
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Connection error when emitting event: {e}")
+    EVENT_BUFFER.append(event_payload)
+    
+    if len(EVENT_BUFFER) >= BATCH_SIZE:
+        flush_events()
